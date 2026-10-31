@@ -45,6 +45,7 @@ body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-siz
 input,select,textarea{font-size:16px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--paper)}
 button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px!important}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--stamp);outline-offset:2px}
 .wrap{max-width:720px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
@@ -100,13 +101,13 @@ h2.sec{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;text
 .stars-mini{font-size:11px;color:var(--gold);letter-spacing:1px}
 
 .cover{position:relative;aspect-ratio:2/3;width:100%;max-width:100%;border-radius:4px 8px 8px 4px;overflow:hidden;box-shadow:var(--shadow);background:var(--line)}
-.cover img{width:100%;height:100%;object-fit:cover;display:block}
-.cover::after{content:"";position:absolute;inset:0 auto 0 0;width:7%;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(255,255,255,.08) 60%,transparent)}
+.cover img{position:absolute;inset:0;z-index:1;width:100%;height:100%;object-fit:cover;display:block}
+.cover::after{content:"";position:absolute;z-index:2;inset:0 auto 0 0;width:7%;background:linear-gradient(90deg,rgba(0,0,0,.22),rgba(255,255,255,.08) 60%,transparent)}
 .gen{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:space-between;padding:12% 10% 10% 16%;color:#fff}
 .gen .gt{font-family:var(--f-display);font-size:clamp(11px,3.4vw,17px);line-height:1.08;word-break:break-word;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
 .gen .ga{font-size:clamp(8px,2.2vw,11px);letter-spacing:.06em;text-transform:uppercase;opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .gen .rule{height:1px;background:rgba(255,255,255,.45);margin:6px 0}
-.badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;z-index:1}
+.badge{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:600;padding:2px 6px;border-radius:99px;z-index:3}
 
 /* vazio */
 .empty{background:var(--card);border:1px dashed var(--line);border-radius:18px;padding:28px 20px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
@@ -163,7 +164,7 @@ nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:1f
 .res .add svg{width:20px;height:20px}
 .note{font-size:12.5px;color:var(--muted)}
 .note.ai{display:flex;gap:6px;align-items:center}
-.status{font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center}
+.status{font-size:14px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .spin{width:16px;height:16px;border:2px solid var(--line);border-top-color:var(--stamp);border-radius:50%;animation:sp .8s linear infinite;flex:none}
 @keyframes sp{to{transform:rotate(360deg)}}
 
@@ -453,7 +454,7 @@ textarea#dQuote{min-height:60px}
 <script>
 (() => {
 "use strict";
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.4";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SHELVES = [
@@ -564,13 +565,14 @@ function genCover(b){
   const [h,s,l] = PALETTE[hash((b.title||"")+(b.authors||[]).join()) % PALETTE.length];
   return `<div class="gen" style="background:linear-gradient(160deg,hsl(${h} ${s}% ${l+8}%),hsl(${h} ${s}% ${l-6}%))"><div class="gt">${esc(b.title||"Sem título")}</div><div><div class="rule"></div><div class="ga">${esc((b.authors||[])[0]||"")}</div></div></div>`;
 }
+function amzCover(isbn){ const i10 = isbn && isbn.length===13 ? isbn13to10(isbn) : isbn; return i10 && i10.length===10 ? `https://m.media-amazon.com/images/P/${i10}.01.LZZZZZZZ.jpg` : ""; }
 function olCover(isbn){ return isbn ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false` : ""; }
 function coverHTML(b, badge, detail){
   const g = genCover(b);
   const src = b.cover || (b.noCover ? "" : olCover(b.isbn));
-  const alt = b.cover && !String(b.cover).startsWith("data:") && b.isbn && !String(b.cover).includes("openlibrary") ? olCover(b.isbn) : "";
+  const alt = String(b.cover||"").startsWith("data:") || b.noCover ? "" : [olCover(b.isbn), amzCover(b.isbn)].filter(u => u && u !== src).join("|");
   const fail = detail ? "var d=this.closest('.dhead');if(d)d.classList.add('nocov');" : "";
-  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-alt="${esc(alt)}" onload="if(this.naturalWidth<20){this.onerror()}" onerror="if(this.src.indexOf('&fife=')>0){this.src=this.src.replace(/&fife=[^&]*/,'')}else if(this.dataset.alt){this.src=this.dataset.alt;this.dataset.alt=''}else{${fail}this.remove()}">` : "";
+  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer" data-alt="${esc(alt)}" onload="if(this.naturalWidth<40){this.onerror()}" onerror="var a=(this.dataset.alt||'').split('|').filter(Boolean);if(this.src.indexOf('&fife=')>0){this.src=this.src.replace(/&fife=[^&]*/,'')}else if(a.length){this.src=a.shift();this.dataset.alt=a.join('|')}else{${fail}this.remove()}">` : "";
   return `<div class="cover">${g}${img}${badge?`<span class="badge">${esc(badge)}</span>`:""}</div>`;
 }
 function resizeImage(file, max=360, q=.72){
@@ -606,28 +608,50 @@ function fromGoogle(it){
     year: parseInt((v.publishedDate||"").slice(0,4)) || null, publisher: v.publisher || "", isbn, cover, description: v.description || "", source:"Google Livros" };
 }
 async function fetchJSON(url){ const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 8000); try { const r = await fetch(url,{signal:ctl.signal}); if(!r.ok) throw 0; return await r.json(); } finally { clearTimeout(t); } }
+const GB = "https://www.googleapis.com/books/v1/volumes";
+const pick = (...v) => v.find(x => x !== undefined && x !== null && x !== "" && !(Array.isArray(x) && !x.length));
+/* BrasilAPI junta CBL (Câmara Brasileira do Livro), Mercado Editorial, Open Library e Google: a melhor base para edições brasileiras */
+async function brasilApi(isbn){
+  try { const v = await fetchJSON("https://brasilapi.com.br/api/isbn/v1/" + isbn); if (!v || !v.title) return null;
+    return { isbns:[isbn], title: v.title + (v.subtitle ? ": " + v.subtitle : ""), authors: v.authors || [], pages: v.page_count || 0, year: v.year || null,
+      publisher: v.publisher || "", isbn, cover: String(v.cover_url || "").replace(/^http:/,"https:"), description: v.synopsis || "", source: "CBL / BrasilAPI" };
+  } catch(e){ return null; }
+}
+async function googleIsbn(isbn){
+  for (const q of ["isbn:" + isbn, isbn]) {
+    try { const j = await fetchJSON(GB + "?country=BR&maxResults=8&q=" + encodeURIComponent(q));
+      if (!j.items || !j.items.length) continue;
+      const list = j.items.map(fromGoogle);
+      const exact = list.find(r => r.isbns.includes(isbn) || r.isbns.includes(isbn13to10(isbn)));
+      if (exact) return exact;
+      if (q.startsWith("isbn:")) return {...list[0], cover:"", isbn}; // outra edição: aproveita os dados, não a capa
+    } catch(e){}
+  }
+  return null;
+}
+async function openLibIsbn(isbn){
+  try { const j = await fetchJSON("https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:" + isbn);
+    const v = j["ISBN:"+isbn]; if (!v) return null;
+    return { title:v.title + (v.subtitle?": "+v.subtitle:""), authors:(v.authors||[]).map(a=>a.name), pages:v.number_of_pages||0, year:parseInt(String(v.publish_date||"").match(/\d{4}/))||null, publisher:((v.publishers||[])[0]||{}).name||"", isbn, cover:(v.cover && (v.cover.large||v.cover.medium))||"", description:"", source:"Open Library" };
+  } catch(e){ return null; }
+}
 async function searchWeb(q){
   const isbn = isIsbn(q) ? normIsbn(q) : null;
-  try {
-    const j = await fetchJSON("https://www.googleapis.com/books/v1/volumes?maxResults=12&q=" + encodeURIComponent(isbn ? "isbn:"+isbn : q));
-    if (j.items && j.items.length) {
-      const list = j.items.map(fromGoogle);
-      if (isbn) list.forEach(r => { // a capa do Google pode ser de outra edição: só vale se o ISBN bater
-        if (!r.isbns.includes(isbn) && !r.isbns.includes(isbn13to10(isbn))) r.cover = olCover(isbn);
-        r.isbn = isbn; });
-      return list;
-    }
-  } catch(e){}
-  try {
-    if (isbn) {
-      const j = await fetchJSON("https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:" + isbn);
-      const v = j["ISBN:"+isbn]; if (v) return [{ title:v.title, authors:(v.authors||[]).map(a=>a.name), pages:v.number_of_pages||0, year:parseInt(String(v.publish_date||"").match(/\d{4}/))||null, publisher:(v.publishers||[])[0]?.name||"", isbn, cover:v.cover?.medium||"", description:"", source:"Open Library" }];
-    } else {
-      const j = await fetchJSON("https://openlibrary.org/search.json?limit=12&q=" + encodeURIComponent(q));
-      if (j.docs && j.docs.length) return j.docs.map(d => ({ title:d.title, authors:d.author_name||[], pages:d.number_of_pages_median||0, year:d.first_publish_year||null, publisher:(d.publisher||[])[0]||"", isbn:(d.isbn||[]).find(x=>x.length===13)||"", cover:d.cover_i?`https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`:"", description:"", source:"Open Library" }));
-    }
-  } catch(e){}
-  return null; // null = web indisponível
+  if (isbn) {
+    const found = (await Promise.all([brasilApi(isbn), googleIsbn(isbn), openLibIsbn(isbn)])).filter(Boolean);
+    if (!found.length) return [];
+    const [a, ...rest] = found; const all = [a, ...rest];
+    // junta o melhor de cada fonte num registro só
+    return [{ title: a.title, authors: pick(...all.map(r=>r.authors)) || [], pages: pick(...all.map(r=>r.pages||"")) || 0, year: pick(...all.map(r=>r.year)) || null,
+      publisher: pick(...all.map(r=>r.publisher)) || "", isbn, cover: pick(...all.map(r=>r.cover)) || "", description: pick(...all.map(r=>r.description)) || "",
+      source: [...new Set(all.map(r=>r.source))].join(" + ") }];
+  }
+  const [g, ol] = await Promise.all([
+    fetchJSON(GB + "?country=BR&maxResults=15&q=" + encodeURIComponent(q)).then(j => (j.items||[]).map(fromGoogle)).catch(() => []),
+    fetchJSON("https://openlibrary.org/search.json?limit=10&fields=title,author_name,number_of_pages_median,first_publish_year,publisher,isbn,cover_i&q=" + encodeURIComponent(q))
+      .then(j => (j.docs||[]).map(d => ({ title:d.title, authors:d.author_name||[], pages:d.number_of_pages_median||0, year:d.first_publish_year||null, publisher:(d.publisher||[])[0]||"", isbn:(d.isbn||[]).find(x=>x.length===13)||"", cover:d.cover_i?`https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg`:"", description:"", source:"Open Library" }))).catch(() => [])
+  ]);
+  const seen = new Set(); return [...g, ...ol].filter(r => { const k = (r.title||"").toLowerCase()+"|"+((r.authors||[])[0]||"").toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 const BOOK_SCHEMA = 'Cada livro: {"title":string,"authors":[string],"pages":number|null,"year":number|null,"publisher":string,"isbn":string,"description":string (1 frase em português)}';
 async function searchClaude(q){
@@ -642,7 +666,7 @@ async function findBooks(q){
   const web = await searchWeb(q);
   if (web && web.length) return web;
   if (sample) { try { return await searchClaude(q); } catch(e){ if (e && e.code === "not_granted") toast("Sem permissão para consultar o Claude."); } }
-  return web === null && !sample ? null : [];
+  return [];
 }
 
 /* ---------- adicionar ---------- */
@@ -669,7 +693,9 @@ async function runSearch(q){
   setStatus(`<span class="spin"></span>Procurando “${esc(q)}”…`);
   const r = await findBooks(q);
   if (r === null) { setStatus("Não consegui consultar nenhuma base de livros daqui. Cadastre à mão."); return; }
-  if (!r.length) { setStatus(isIsbn(q) ? `Nenhum livro encontrado para o ISBN ${esc(normIsbn(q))}. Você pode cadastrar à mão.` : "Nada encontrado. Tente outro termo ou cadastre à mão."); if (isIsbn(q)) prefillIsbn = normIsbn(q); return; }
+  if (!r.length) { if (isIsbn(q)) prefillIsbn = normIsbn(q);
+    setStatus(isIsbn(q) ? `Não achei o ISBN ${esc(normIsbn(q))} em nenhuma das bases (CBL, Google Livros, Open Library). <button class="btn ghost" id="stManual" style="padding:6px 12px">Cadastrar à mão</button>` : `Nada encontrado. Tente outro termo ou <button class="btn ghost" id="stManual" style="padding:6px 12px">cadastre à mão</button>`);
+    const m=$("#stManual"); if (m) m.onclick = () => $("#actManual").click(); return; }
   setStatus(""); renderResults(r);
 }
 let prefillIsbn = "";
@@ -1006,7 +1032,8 @@ function renderBook(){
 /* escolher capa: edição exata pelo ISBN + outras edições do mesmo livro */
 async function findCovers(b){
   const out=[], seen=new Set(); const add=(u,label,tag)=>{ if(u && !seen.has(u)){ seen.add(u); out.push({u,label,tag}); } };
-  if (b.isbn) add(olCover(b.isbn), "Open Library", "Seu ISBN");
+  if (b.isbn) { add(olCover(b.isbn), "Open Library", "Seu ISBN"); add(amzCover(b.isbn), "Amazon", "Seu ISBN"); }
+  if (b.isbn) { const br = await brasilApi(b.isbn); if (br && br.cover) add(br.cover, br.publisher || "CBL", "Seu ISBN"); }
   const title = (b.title||"").split(":")[0].trim(), author = (b.authors||[])[0]||"";
   const jobs = [];
   if (b.isbn) jobs.push(fetchJSON("https://www.googleapis.com/books/v1/volumes?q=isbn:"+b.isbn).then(j=>(j.items||[]).map(fromGoogle).forEach(x=>{ if(x.cover && x.isbns.includes(b.isbn)) add(x.cover, [x.publisher,x.year].filter(Boolean).join(" · ")||"Google Livros", "Seu ISBN"); })).catch(()=>{}));
@@ -1126,7 +1153,7 @@ async function importBackup(e){
 function setView(v){ state.view=v; $("#viewShelf").hidden = v!=="shelf"; $("#viewStats").hidden = v!=="stats";
   $("#tabShelf").setAttribute("aria-current", v==="shelf"?"page":"false"); $("#tabStats").setAttribute("aria-current", v==="stats"?"page":"false");
   if (v==="stats") renderStats(); window.scrollTo(0,0); }
-  $("#tabShelf").onclick=()=>setView("shelf"); $("#tabStats").onclick=()=>setView("stats");
+$("#tabShelf").onclick=()=>setView("shelf"); $("#tabStats").onclick=()=>setView("stats");
 
 render();
 Store.init();
