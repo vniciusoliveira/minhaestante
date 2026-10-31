@@ -7,6 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Estante">
 <meta name="theme-color" content="#5B3FA8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 </head>
 <body>
@@ -38,7 +40,7 @@
 [hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:clip}
 html,body{height:100%}
-html.lock,html.lock body{overflow:hidden}
+html.lock,html.lock body{overflow:hidden;overscroll-behavior:none}
 body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent;overflow-x:clip;overscroll-behavior-y:none;touch-action:manipulation}
 input,select,textarea{font-size:16px}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--paper)}
@@ -139,7 +141,7 @@ nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:1f
 .sheet .grab{width:40px;height:5px;border-radius:9px;background:var(--line);margin:8px auto 0;flex:none}
 .sheet .head{display:flex;align-items:center;gap:10px;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));flex:none}
 .sheet .head h3{flex:1;margin:0;font-family:var(--f-display);font-weight:400;font-size:22px}
-.sheet .body{overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px;max-width:720px;width:100%;margin:0 auto}
+.sheet .body{overflow-y:auto;overflow-x:hidden;touch-action:pan-y;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px;max-width:720px;width:100%;margin:0 auto}
 @media (prefers-reduced-motion: reduce){.sheet,.scrim{transition:none}}
 
 .actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -206,7 +208,14 @@ nav.tabs .in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:1f
 .prog{display:flex;align-items:center;gap:10px}
 .prog input[type=range]{flex:1;accent-color:var(--stamp);min-width:0}
 .num{width:76px;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:8px;font-family:var(--f-mono);text-align:center}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.two>*,.box>*{min-width:0}
+.sheet{touch-action:pan-y;overflow-x:hidden}
+.datef{font-family:var(--f-mono);letter-spacing:.02em}
+.datef.bad{border-color:var(--danger)}
+.lblrow{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.lblrow button{background:none;border:0;padding:0;font-size:12px;font-weight:600;color:var(--stamp)}
+.ver{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-align:center}
 .inp{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:10px;padding:10px;min-width:0}
 textarea.inp{min-height:90px;resize:vertical;line-height:1.45}
 .quotes{display:flex;flex-direction:column;gap:8px}
@@ -444,6 +453,7 @@ textarea#dQuote{min-height:60px}
 <script>
 (() => {
 "use strict";
+const APP_VERSION = "1.3";
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SHELVES = [
@@ -636,8 +646,14 @@ async function findBooks(q){
 }
 
 /* ---------- adicionar ---------- */
-function openSheet(id){ document.querySelectorAll(".sheet.on").forEach(s=>{ if("#"+s.id!==id) s.classList.remove("on"); }); $("#scrim").classList.add("on"); $(id).classList.add("on"); document.documentElement.classList.add("lock"); }
-function closeSheets(){ document.querySelectorAll(".sheet.on").forEach(s=>s.classList.remove("on")); $("#scrim").classList.remove("on"); document.documentElement.classList.remove("lock"); state.openId=null; clearInterval(timerTick); }
+let lockY = 0;
+function lockPage(on){
+  const st = document.body.style;
+  if (on && !document.documentElement.classList.contains("lock")) { lockY = window.scrollY; st.position="fixed"; st.top=(-lockY)+"px"; st.left="0"; st.right="0"; st.width="100%"; document.documentElement.classList.add("lock"); }
+  if (!on && document.documentElement.classList.contains("lock")) { st.position=st.top=st.left=st.right=st.width=""; document.documentElement.classList.remove("lock"); window.scrollTo(0, lockY); }
+}
+function openSheet(id){ document.querySelectorAll(".sheet.on").forEach(s=>{ if("#"+s.id!==id) s.classList.remove("on"); }); $("#scrim").classList.add("on"); $(id).classList.add("on"); lockPage(true); }
+function closeSheets(){ document.querySelectorAll(".sheet.on").forEach(s=>s.classList.remove("on")); $("#scrim").classList.remove("on"); lockPage(false); state.openId=null; clearInterval(timerTick); }
 $("#scrim").onclick = closeSheets;
 document.querySelectorAll("[data-close]").forEach(b => b.onclick = closeSheets);
 document.addEventListener("keydown", e => { if (e.key === "Escape") { if (!$("#scan").hidden) stopScan(); else closeSheets(); } });
@@ -830,6 +846,9 @@ const SHELF_ICON = {
 const HEART = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 7.9 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.5 0 5.7 3.4 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
 const FORMATS = [["fisico","Físico"],["ebook","E-book"],["audio","Audiolivro"]];
 const fmtDate = d => d ? d.slice(8,10)+"/"+d.slice(5,7)+"/"+d.slice(0,4) : "";
+function maskDate(el){ const d=el.value.replace(/\D/g,"").slice(0,8); el.value = d.length>4 ? d.slice(0,2)+"/"+d.slice(2,4)+"/"+d.slice(4) : d.length>2 ? d.slice(0,2)+"/"+d.slice(2) : d; }
+function parseBR(v){ const m=String(v).match(/^(\d{2})\/(\d{2})\/(\d{4})$/); if(!m) return null; const dt=new Date(+m[3],+m[2]-1,+m[1]);
+  if (dt.getFullYear()!==+m[3] || dt.getMonth()!==+m[2]-1 || dt.getDate()!==+m[1]) return null; return m[3]+"-"+m[2]+"-"+m[1]; }
 const fmtMin = m => { m=Math.max(0,Math.round(m)); return m<60 ? m+" min" : Math.floor(m/60)+" h"+(m%60?" "+(m%60)+" min":""); };
 const clock = ms => { const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?h+":":"")+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0"); };
 
@@ -870,7 +889,7 @@ function forecast(b){
 
 function renderBook(){
   clearInterval(timerTick);
-  const b = state.books.get(state.openId); const body=$("#bookBody");
+  const b = state.books.get(state.openId); const body=$("#bookBody"); const keepY = body.scrollTop;
   if (!b) { closeSheets(); return; }
   const tracking = b.shelf==="reading" || b.shelf==="dnf";
   const p = b.progress||0;
@@ -924,8 +943,9 @@ function renderBook(){
         <form id="dTagForm" class="tagform"><input class="inp" id="dTags" placeholder="ex.: ficção, clube do livro" enterkeyhint="done"></form></div></div>
 
     <div class="box"><div class="two">
-      <div><label for="dStart">Comecei</label><input class="inp" type="date" id="dStart" value="${esc(b.started)}"></div>
-      <div><label for="dEnd">Terminei</label><input class="inp" type="date" id="dEnd" value="${esc(b.finished)}"></div></div>
+      <div><div class="lblrow"><label for="dStart">Comecei</label><button type="button" data-today="dStart">hoje</button></div><input class="inp datef" id="dStart" inputmode="numeric" placeholder="DD/MM/AAAA" maxlength="10" autocomplete="off" value="${fmtDate(b.started)}"></div>
+      <div><div class="lblrow"><label for="dEnd">Terminei</label><button type="button" data-today="dEnd">hoje</button></div><input class="inp datef" id="dEnd" inputmode="numeric" placeholder="DD/MM/AAAA" maxlength="10" autocomplete="off" value="${fmtDate(b.finished)}"></div></div>
+      <p class="note" id="dDateNote" hidden>Use o formato DD/MM/AAAA, por exemplo 31/10/2026.</p>
       <label for="dLoan">Emprestado para</label><input class="inp" id="dLoan" value="${esc(b.loan)}" placeholder="Ninguém"></div>
 
     <div class="box"><label for="dNotes">Anotações</label><textarea class="inp" id="dNotes" placeholder="O que achou, personagens, ideias…">${esc(b.notes)}</textarea></div>
@@ -936,6 +956,7 @@ function renderBook(){
         <div class="tools"><input class="inp" id="dQPage" type="number" inputmode="numeric" placeholder="Página" style="max-width:110px" value="${tracking&&p?p:""}"><button class="btn ghost" type="submit">Guardar trecho</button></div></form></div>
 
     <div class="confirm" id="dDelWrap"><button class="btn danger" id="dDel">Remover da estante</button></div>`;
+  body.scrollTop = keepY;
 
   const upd = (patch, now=true) => { const nb = {...state.books.get(b.id), ...patch}; if (now) Store.putBook(nb); else saveSoon(nb); return nb; };
   body.querySelectorAll("[data-setshelf]").forEach(x => x.onclick = () => { moveTo(b.id, x.dataset.setshelf); renderBook(); });
@@ -962,8 +983,15 @@ function renderBook(){
   body.querySelectorAll("[data-format]").forEach(x => x.onclick = () => { upd({format:x.dataset.format}); renderBook(); });
   $("#dTagForm").onsubmit = e => { e.preventDefault(); const add=$("#dTags").value.split(",").map(s=>s.trim().toLowerCase()).filter(Boolean); if(!add.length) return; upd({tags:[...new Set([...(state.books.get(b.id).tags||[]), ...add])]}); renderBook(); };
   body.querySelectorAll("[data-deltag]").forEach(x => x.onclick = () => { const t=[...(state.books.get(b.id).tags||[])]; t.splice(+x.dataset.deltag,1); upd({tags:t}); renderBook(); });
-  $("#dStart").onchange = e => upd({started:e.target.value});
-  $("#dEnd").onchange = e => upd({finished:e.target.value});
+  [["dStart","started"],["dEnd","finished"]].forEach(([fid,key]) => {
+    const el = $("#"+fid);
+    el.oninput = () => { maskDate(el); el.classList.remove("bad"); };
+    const commit = () => { const v=el.value.trim(); if (!v) { upd({[key]:""}); $("#dDateNote").hidden=true; return; }
+      const iso = parseBR(v); if (!iso) { el.classList.add("bad"); $("#dDateNote").hidden=false; return; }
+      el.classList.remove("bad"); $("#dDateNote").hidden=true; if (iso !== state.books.get(b.id)[key]) upd({[key]:iso}); };
+    el.onchange = commit; el.onblur = commit;
+  });
+  body.querySelectorAll("[data-today]").forEach(x => x.onclick = () => { const el=$("#"+x.dataset.today); el.value = fmtDate(today()); el.dispatchEvent(new Event("change")); });
   $("#dLoan").oninput = e => upd({loan:e.target.value.trim()}, false);
   $("#dNotes").oninput = e => upd({notes:e.target.value}, false);
   $("#dQForm").onsubmit = e => { e.preventDefault(); const t=$("#dQuote").value.trim(); if(!t) return; const pg=+$("#dQPage").value||0;
@@ -1003,7 +1031,7 @@ async function openCoverPicker(id){
     <div class="status" id="cpStatus"><span class="spin"></span>Procurando capas de outras edições…</div>
     <div class="covergrid" id="cpGrid"></div>`;
   openSheet("#sheetCover");
-  const save = patch => { Store.putBook({...state.books.get(id), ...patch}); toast("Capa atualizada"); openBook(id); };
+  const save = patch => { Store.putBook({...state.books.get(id), ...patch}); toast("Capa atualizada na estante"); openBook(id); };
   $("#cpPhoto").onclick = () => $("#cpFile").click();
   $("#cpFile").onchange = async e => { const f=e.target.files[0]; if(!f) return; try{ save({cover: await resizeImage(f, 480, .78)}); }catch(_){ toast("Não consegui abrir essa imagem"); } };
   const nb=$("#cpNone"); if (nb) nb.onclick = () => save({cover:"", isbn:b.isbn, noCover:true});
@@ -1069,7 +1097,8 @@ function renderStats(){
     ${loans.length?`<div class="box"><span class="lbl">Emprestados</span><ul class="toplist">${loans.map(b=>`<li><span>${esc(b.title)}</span><span>${esc(b.loan)}</span></li>`).join("")}</ul></div>`:""}
     <div class="box"><span class="lbl">Backup</span><p class="note" style="margin:0">${state.mode==="cloud"?"Sua estante está salva na sua conta, privada para você. O backup gera um arquivo para guardar ou levar para outro lugar.":"Sua estante fica salva neste navegador. Faça backup de vez em quando para não perder nada."}</p>
       <div class="row-btns"><button class="btn ghost" id="bExport">Exportar backup</button><button class="btn ghost" id="bImport">Importar backup</button></div>
-      <input type="file" id="bFile" accept="application/json,.json" hidden><div class="note" id="bNote"></div></div>`;
+      <input type="file" id="bFile" accept="application/json,.json" hidden><div class="note" id="bNote"></div></div>
+    <p class="ver">Estante · versão ${APP_VERSION}</p>`;
   const setGoal = d => { state.settings.goal = Math.max(1,(state.settings.goal||24)+d); Store.putSettings(); renderStats(); };
   $("#goalMinus").onclick=()=>setGoal(-1); $("#goalPlus").onclick=()=>setGoal(1);
   $("#bExport").onclick = exportBackup;
@@ -1097,7 +1126,7 @@ async function importBackup(e){
 function setView(v){ state.view=v; $("#viewShelf").hidden = v!=="shelf"; $("#viewStats").hidden = v!=="stats";
   $("#tabShelf").setAttribute("aria-current", v==="shelf"?"page":"false"); $("#tabStats").setAttribute("aria-current", v==="stats"?"page":"false");
   if (v==="stats") renderStats(); window.scrollTo(0,0); }
-$("#tabShelf").onclick=()=>setView("shelf"); $("#tabStats").onclick=()=>setView("stats");
+  $("#tabShelf").onclick=()=>setView("shelf"); $("#tabStats").onclick=()=>setView("stats");
 
 render();
 Store.init();
